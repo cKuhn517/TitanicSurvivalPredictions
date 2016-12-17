@@ -85,5 +85,18 @@ write.csv(my_solution, file = "my_solution.csv", row.names = FALSE)
 my_tree_two <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,
                      data = train, method = "class", control = rpart.control(minsplit = 50, cp = 0))
 
-# Visualize my_tree_three
+# Visualize the new tree
 fancyRpartPlot(my_tree_two)
+
+# Use feature engineering to create a new variable representing the size of a family
+train_two <- train
+train_two$family_size <- train_two$SibSp + train_two$Parch + 1
+
+# Finish the command
+my_tree_three <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + family_size,
+                      data = train_two, method = "class")
+
+# Visualize your new decision tree
+fancyRpartPlot(my_tree_three)
+
+# Plot did not change, family size did not have a valuable enough affect
