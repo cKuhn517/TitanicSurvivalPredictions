@@ -45,9 +45,9 @@ test_one$Survived <- 0
 # Set Survived to 1 if Sex equals "female"
 test_one$Survived[test_one$Sex == "female"] <- 1
 
-#################################################
-# Better way to determine variables to split on #
-#################################################
+#######################################################
+# Ch 2: Better way to determine variables to split on #
+#######################################################
 
 # Load in the R package
 library(rpart)
@@ -100,3 +100,55 @@ my_tree_three <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Em
 fancyRpartPlot(my_tree_three)
 
 # Plot did not change, family size did not have a valuable enough affect
+
+#######################################################
+# Ch 3: Improving predicitons                         #
+#######################################################
+
+load("all_data.RData", envir = parent.frame(), verbose = FALSE)
+
+# Prepare all_data for random forest by removing missing values
+# Passenger on row 62 and 830 do not have a value for embarkment.
+# Since many passengers embarked at Southampton, we give them the value S.
+all_data$Embarked[c(62, 830)] <- "S"
+
+# Factorize embarkment codes.
+all_data$Embarked <- factor(all_data$Embarked)
+
+# Passenger on row 1044 has an NA Fare value. Let's replace it with the median fare value.
+all_data$Fare[1044] <- median(all_data$Fare, na.rm = TRUE)
+
+# How to fill in missing Age values?
+# We make a prediction of a passengers Age using the other variables and a decision tree model.
+# This time you give method = "anova" since you are predicting a continuous variable.
+predicted_age <- rpart(Age ~ Pclass + Sex + SibSp + Parch + Fare + Embarked + Title + family_size,
+                       data = all_data[!is.na(all_data$Age),], method = "anova")
+all_data$Age[is.na(all_data$Age)] <- predict(predicted_age, all_data[is.na(all_data$Age),])
+
+# Split the data back into a train set and a test set
+train_three <- all_data[1:891,]
+test_three <- all_data[892:1309,]
+
+# Load in the package
+library(randomForest)
+
+# Set seed for reproducibility
+set.seed(111)
+
+# Apply the Random Forest Algorithm
+my_forest <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked
+              + Title, data = train_three, importance = TRUE, ntree = 1000)
+
+# Have a look at which variables are important
+varImpPlot(my_forest)
+
+# Make your prediction using the test set
+my_prediction <- predict(my_forest, test_three)
+
+# Create a data frame with two columns: PassengerId & Survived. Survived contains your predictions
+my_solution <- data.frame(PassengerID = test$PassengerId, Survived = my_prediction)
+
+# Write your solution away to a csv file with the name my_solution.csv
+write.csv(my_solution, file = "my_solution2.csv", row.names = FALSE)
+
+# Result increased: 0.78469 --> 0.79904
